@@ -13,7 +13,11 @@
 #include <iomanip>
 
 #include "rma_nb_queue.h"
-#include "include/utils.h"
+
+extern "C"
+{
+    #include "mpi_timing/utils.h"
+}
 
 #define USE_DEBUG 0
 #define USE_MPI_CALLS_COUNTING 0

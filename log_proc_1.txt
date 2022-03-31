@@ -1,0 +1,15 @@
+rank 1: running on host denis-HP-Pavilion-GaöU
+rank 1: STARTING TEST_ENQ_DEQ_M_PROC
+rank 1: size_per_node: 15000
+	num_of_ops_per_node: 10000
+rank 1: n_proc: 6
+	ts_offset: -4.54747e-13
+rank 1: total added	10003,	deleted	4997
+rank 1: OWN time taken: 0.454163 s	throughput: 132111 ops/s
+rank 1: timings avg:
+	enq_overall:	0.0476267 ms	(476.41, 10003)
+	enq_hopping:	0.0109828 ms	(109.861, 10003)
+	deq_overall:	0.0445003 ms	(222.368, 4997)
+	deq_hopping:	0.0055023 ms	(27.495, 4997)
+	bcast_overall:	0.0264803 ms	(397.205, 15000)
+rank 1: EXITING TEST_ENQ_DEQ_M_PROC
