@@ -1,0 +1,118 @@
+add_executable(
+        benchmark_enq_deq_multiple_proc
+        benchmark_enq_deq_multiple_proc.cpp
+)
+target_include_directories(
+        benchmark_enq_deq_multiple_proc
+        PUBLIC
+        mpi_timing
+        ${MPI_INCLUDE_PATH}
+)
+target_link_libraries(
+        benchmark_enq_deq_multiple_proc
+        sub::rma_nb_queue
+        ${MPI_CXX_LIBRARIES}
+        ${MPI_C_LIBRARIES}
+)
+
+add_executable(
+        benchmark_queue_init
+        benchmark_queue_init.cpp
+)
+target_include_directories(
+        benchmark_queue_init
+        PUBLIC
+        mpi_timing
+        ${MPI_INCLUDE_PATH}
+)
+target_link_libraries(
+        benchmark_queue_init
+        sub::rma_nb_queue
+        ${MPI_CXX_LIBRARIES}
+        ${MPI_C_LIBRARIES}
+)
+
+add_executable(
+        benchmark_enq_single_proc
+        benchmark_enq_single_proc.cpp
+)
+target_include_directories(
+        benchmark_enq_single_proc
+        PUBLIC
+        mpi_timing
+        ${MPI_INCLUDE_PATH}
+)
+target_link_libraries(
+        benchmark_enq_single_proc
+        sub::rma_nb_queue
+        ${MPI_CXX_LIBRARIES}
+        ${MPI_C_LIBRARIES}
+)
+
+add_executable(
+        benchmark_enq_multiple_proc
+        benchmark_enq_multiple_proc.cpp
+)
+target_include_directories(
+        benchmark_enq_multiple_proc
+        PUBLIC
+        mpi_timing
+        ${MPI_INCLUDE_PATH}
+)
+target_link_libraries(
+        benchmark_enq_multiple_proc
+        sub::rma_nb_queue
+        ${MPI_CXX_LIBRARIES}
+        ${MPI_C_LIBRARIES}
+)
+
+add_executable(
+        benchmark_deq_single_proc
+        benchmark_deq_single_proc.cpp
+)
+target_include_directories(
+        benchmark_deq_single_proc
+        PUBLIC
+        mpi_timing
+        ${MPI_INCLUDE_PATH}
+)
+target_link_libraries(
+        benchmark_deq_single_proc
+        sub::rma_nb_queue
+        ${MPI_CXX_LIBRARIES}
+        ${MPI_C_LIBRARIES}
+)
+
+add_executable(
+        benchmark_deq_multiple_proc
+        benchmark_deq_multiple_proc.cpp
+)
+target_include_directories(
+        benchmark_deq_multiple_proc
+        PUBLIC
+        mpi_timing
+        ${MPI_INCLUDE_PATH}
+)
+target_link_libraries(
+        benchmark_deq_multiple_proc
+        sub::rma_nb_queue
+        sub::mpi_timing
+        ${MPI_CXX_LIBRARIES}
+        ${MPI_C_LIBRARIES}
+)
+
+add_executable(
+        benchmark_complex
+        benchmark_complex.cpp
+)
+target_include_directories(
+        benchmark_complex
+        PUBLIC
+        ${MPI_INCLUDE_PATH}
+)
+target_link_libraries(
+        benchmark_complex
+        rma_nb_queue
+        ${MPI_CXX_LIBRARIES}
+        ${MPI_C_LIBRARIES}
+)

@@ -19,49 +19,11 @@ extern "C"
     #include "mpi_timing/utils.h"
 }
 
-#define USE_DEBUG 0
-#define USE_MPI_CALLS_COUNTING 0
-#define USE_TIMINGS 1
-
-#define LOG_PRINT_CONSOLE 0b10
-#define LOG_PRINT_FILE 0b01
-#define LOG_PRINT_MODE 0b01 // 0b10 - console only, 0b01 - file (one per process) only, 0b11 - console and file
-
-#define TIMING_ENQ_OVERALL 10
-#define TIMING_ENQ_HOPPING 11
-#define TIMING_DEQ_OVERALL 20
-#define TIMING_DEQ_HOPPING 21
-#define TIMING_BCAST_OVERALL 30
-
 void exclude_rank(rand_provider_t* provider, int rank);
 int get_next_node_rand(rand_provider_t* provider);
 void rand_provider_init(rand_provider_t* provider, int n_proc);
 void rand_provider_free(rand_provider_t* provider);
 int get_elem(rma_nb_queue_t* queue, u_node_info_t elem_info, elem_t* elem);
-std::string print(u_node_info_t info);
-std::string print(elem_t elem);
-
-typedef struct {
-	unsigned int added;
-	unsigned int deleted;
-} test_result;
-
-typedef struct {
-	int* to;
-	int n;
-} mpi_call_counter_t;
-
-typedef struct {
-	double sum = 0.0; // ms
-	unsigned long long n = 0;
-} timing_t;
-typedef struct {
-	timing_t enq_overall;
-	timing_t enq_hopping;
-	timing_t deq_overall;
-	timing_t deq_hopping;
-	timing_t bcast_overall;
-} timings_t;
 
 std::string log_file_name;
 std::ofstream log_file;
@@ -1181,747 +1143,305 @@ unsigned long long get_actual_size(rma_nb_queue_t* queue) {
 }
 
 std::string print(u_node_info_t info) {
-	std::stringstream s;
-	s << "(" << info.parsed.rank << ", " << info.parsed.position << /*": " << info.raw <<*/ ")";
-	return s.str();
+    std::stringstream s;
+    s << "(" << info.parsed.rank << ", " << info.parsed.position << /*": " << info.raw <<*/ ")";
+    return s.str();
 }
 std::string print(queue_state_t queue_state) {
-	std::ostringstream s;
-	s	<< "head " << print(queue_state.head_info)
-		<< "\ttail " << print(queue_state.tail_info);
-	return s.str();
+    std::ostringstream s;
+    s	<< "head " << print(queue_state.head_info)
+         << "\ttail " << print(queue_state.tail_info);
+    return s.str();
 }
 std::string print(elem_t elem) {
-	std::ostringstream s;
-	s	<< std::setprecision(20)
-		<< elem.ts << "\t"
-		<< elem.value << "\t"
-		<< elem.state << "\tcurrent "
-		<< print(elem.info) << "\tnext "
-		<< print(elem.next_node_info);
-	return s.str();
+    std::ostringstream s;
+    s	<< std::setprecision(20)
+         << elem.ts << "\t"
+         << elem.value << "\t"
+         << elem.state << "\tcurrent "
+         << print(elem.info) << "\tnext "
+         << print(elem.next_node_info);
+    return s.str();
 }
 std::string print(rma_nb_queue_t* queue) {
-	std::ostringstream s;
+    std::ostringstream s;
 
-	int total_elem = 0;
-	elem_t elem;
-	u_node_info_t next_node_info;
+    int total_elem = 0;
+    elem_t elem;
+    u_node_info_t next_node_info;
 
-	s << "queue:" << std::endl;
+    s << "queue:" << std::endl;
 
-	begin_epoch_all(queue->win);
+    begin_epoch_all(queue->win);
 
-	get_head_info(queue, myrank, &next_node_info);
-	if (next_node_info.raw != UNDEFINED_NODE_INFO) {
-		do {
-			++total_elem;
-			get_elem(queue, next_node_info, &elem);
-			s << "\t" << print(elem) << std::endl;
-			next_node_info = elem.next_node_info;
-		} while (next_node_info.raw != UNDEFINED_NODE_INFO);
-	}
-	s << "total: " << total_elem << std::endl;
+    get_head_info(queue, myrank, &next_node_info);
+    if (next_node_info.raw != UNDEFINED_NODE_INFO) {
+        do {
+            ++total_elem;
+            get_elem(queue, next_node_info, &elem);
+            s << "\t" << print(elem) << std::endl;
+            next_node_info = elem.next_node_info;
+        } while (next_node_info.raw != UNDEFINED_NODE_INFO);
+    }
+    s << "total: " << total_elem << std::endl;
 
-	end_epoch_all(queue->win);
-	return s.str();
+    end_epoch_all(queue->win);
+    return s.str();
 }
 std::string print_from_sentinel(rma_nb_queue_t* queue) {
-	std::ostringstream s;
+    std::ostringstream s;
 
-	int total_elem = 0;
-	elem_t elem;
-	u_node_info_t next_node_info;
+    int total_elem = 0;
+    elem_t elem;
+    u_node_info_t next_node_info;
 
-	begin_epoch_all(queue->win);
+    begin_epoch_all(queue->win);
 
-	get_sentinel(queue, &elem);
-	next_node_info = elem.next_node_info;
-	if (next_node_info.raw != UNDEFINED_NODE_INFO) {
-		do {
-			++total_elem;
-			get_elem(queue, next_node_info, &elem);
-			s << print(elem) << std::endl;
-			next_node_info = elem.next_node_info;
-		} while (next_node_info.raw != UNDEFINED_NODE_INFO);
-	}
-	s << "total: " << total_elem << std::endl;
+    get_sentinel(queue, &elem);
+    next_node_info = elem.next_node_info;
+    if (next_node_info.raw != UNDEFINED_NODE_INFO) {
+        do {
+            ++total_elem;
+            get_elem(queue, next_node_info, &elem);
+            s << print(elem) << std::endl;
+            next_node_info = elem.next_node_info;
+        } while (next_node_info.raw != UNDEFINED_NODE_INFO);
+    }
+    s << "total: " << total_elem << std::endl;
 
-	end_epoch_all(queue->win);
-	return s.str();
+    end_epoch_all(queue->win);
+    return s.str();
 }
 std::string print_attributes(rma_nb_queue_t* queue) {
-	std::ostringstream s;
+    std::ostringstream s;
 
-	s << "queue attributes:" << std::endl;
+    s << "queue attributes:" << std::endl;
 
-	s << "\twindow:\t\t" << queue->win << std::endl;
+    s << "\twindow:\t\t" << queue->win << std::endl;
 
-	s << "\tbase_dl:\t" << queue->basedisp_local << std::endl;
-	s << "\tbase_ds:\t";
-	for (int i = 0; i < queue->n_proc; ++i) {
-		s << queue->basedisp[i] << " ";
-	}
+    s << "\tbase_dl:\t" << queue->basedisp_local << std::endl;
+    s << "\tbase_ds:\t";
+    for (int i = 0; i < queue->n_proc; ++i) {
+        s << queue->basedisp[i] << " ";
+    }
 
-	s << "\n\tdata_dl:\t" << queue->datadisp_local << std::endl;
-	s << "\tdata_ds:\t";
-	for (int i = 0; i < queue->n_proc; ++i) {
-		s << queue->datadisp[i] << " ";
-	}
-	s << "\n\tdata:\t\t" << queue->data << std::endl;
-	s << "\tdata_ptr:\t" << queue->data_ptr << std::endl;
-	s << "\tdata_size:\t" << queue->data_size << std::endl;
+    s << "\n\tdata_dl:\t" << queue->datadisp_local << std::endl;
+    s << "\tdata_ds:\t";
+    for (int i = 0; i < queue->n_proc; ++i) {
+        s << queue->datadisp[i] << " ";
+    }
+    s << "\n\tdata:\t\t" << queue->data << std::endl;
+    s << "\tdata_ptr:\t" << queue->data_ptr << std::endl;
+    s << "\tdata_size:\t" << queue->data_size << std::endl;
 
-	s << "\tstate_dl:\t" << queue->statedisp_local << std::endl;
-	s << "\tstate_ds:\t";
-	for (int i = 0; i < queue->n_proc; ++i) {
-		s << queue->statedisp[i] << " ";
-	}
-	s << "\n\tqueue_state:\t" << print(queue->state) << std::endl;
+    s << "\tstate_dl:\t" << queue->statedisp_local << std::endl;
+    s << "\tstate_ds:\t";
+    for (int i = 0; i < queue->n_proc; ++i) {
+        s << queue->statedisp[i] << " ";
+    }
+    s << "\n\tqueue_state:\t" << print(queue->state) << std::endl;
 
-	s << "\tsent_d:\t\t" << queue->sentineldisp << std::endl;
-	if (myrank == MAIN_RANK) {
-		s << "\tsentinel:\n\t\t" << print(queue->sentinel) << std::endl;
-	}
+    s << "\tsent_d:\t\t" << queue->sentineldisp << std::endl;
+    if (myrank == MAIN_RANK) {
+        s << "\tsentinel:\n\t\t" << print(queue->sentinel) << std::endl;
+    }
 
-	s << "\thead_dl:\t" << queue->operdisp_local << std::endl;
-	s << "\thead_ds:\t";
-	for (int i = 0; i < queue->n_proc; ++i) {
-		s << queue->operdisp[i] << " ";
-	}
-	s << "\n\thead:\t" << print(queue->oper) << std::endl;
+    s << "\thead_dl:\t" << queue->operdisp_local << std::endl;
+    s << "\thead_ds:\t";
+    for (int i = 0; i < queue->n_proc; ++i) {
+        s << queue->operdisp[i] << " ";
+    }
+    s << "\n\thead:\t" << print(queue->oper) << std::endl;
 
-	s << "\ttail_dl:\t" << queue->operdisp_local << std::endl;
-	s << "\ttail_ds:\t";
-	for (int i = 0; i < queue->n_proc; ++i) {
-		s << queue->operdisp[i] << " ";
-	}
-	s << "\n\ttail:\t" << print(queue->oper) << std::endl;
+    s << "\ttail_dl:\t" << queue->operdisp_local << std::endl;
+    s << "\ttail_ds:\t";
+    for (int i = 0; i < queue->n_proc; ++i) {
+        s << queue->operdisp[i] << " ";
+    }
+    s << "\n\ttail:\t" << print(queue->oper) << std::endl;
 
-	s << "\tcomm:\t" << queue->comm << std::endl;
-	s << "\tn_proc:\t" << queue->n_proc << std::endl;
-	s << "\tts_offset:\t" << queue->ts_offset << std::endl;
+    s << "\tcomm:\t" << queue->comm << std::endl;
+    s << "\tn_proc:\t" << queue->n_proc << std::endl;
+    s << "\tts_offset:\t" << queue->ts_offset << std::endl;
 
-	return s.str();
+    return s.str();
 }
 std::string print(rand_provider_t* provider) {
-	std::ostringstream s;
+    std::ostringstream s;
 
-	s << "{ ";
-	for (int i = 0; i < provider->n_proc; ++i) {
-		s << provider->nodes[i] << ' ';
-	}
-	s << "} " << provider->n_proc << std::endl;
+    s << "{ ";
+    for (int i = 0; i < provider->n_proc; ++i) {
+        s << provider->nodes[i] << ' ';
+    }
+    s << "} " << provider->n_proc << std::endl;
 
-	return s.str();
+    return s.str();
 }
 std::string print(mpi_call_counter_t* counter) {
-	std::ostringstream s;
+    std::ostringstream s;
 
-	s << "mpi calls to processes:" << std::endl;
-	for (int i = 0; i < counter->n; ++i) {
-		s << '\t' << i << ": " << counter->to[i] << std::endl;
-	}
+    s << "mpi calls to processes:" << std::endl;
+    for (int i = 0; i < counter->n; ++i) {
+        s << '\t' << i << ": " << counter->to[i] << std::endl;
+    }
 
-	return s.str();
+    return s.str();
 }
 std::string print(timing_t* timing) {
-	std::ostringstream s;
+    std::ostringstream s;
 
-	s << timing->sum/timing->n << " ms" << '\t' << "(" << timing->sum << ", " << timing->n << ")";
+    s << timing->sum/timing->n << " ms" << '\t' << "(" << timing->sum << ", " << timing->n << ")";
 
-	return s.str();
+    return s.str();
 }
 std::string print(timings_t* times) {
-	std::ostringstream s;
+    std::ostringstream s;
 
-	s << "timings avg:" << std::endl;
-	s << '\t' <<  "enq_overall:" << '\t' << print(&times->enq_overall) << std::endl;
-	s << '\t' <<  "enq_hopping:" << '\t' << print(&times->enq_hopping) << std::endl;
-	s << '\t' <<  "deq_overall:" << '\t' << print(&times->deq_overall) << std::endl;
-	s << '\t' <<  "deq_hopping:" << '\t' << print(&times->deq_hopping) << std::endl;
-	s << '\t' <<  "bcast_overall:" << '\t' << print(&times->bcast_overall) << std::endl;
+    s << "timings avg:" << std::endl;
+    s << '\t' <<  "enq_overall:" << '\t' << print(&times->enq_overall) << std::endl;
+    s << '\t' <<  "enq_hopping:" << '\t' << print(&times->enq_hopping) << std::endl;
+    s << '\t' <<  "deq_overall:" << '\t' << print(&times->deq_overall) << std::endl;
+    s << '\t' <<  "deq_hopping:" << '\t' << print(&times->deq_hopping) << std::endl;
+    s << '\t' <<  "bcast_overall:" << '\t' << print(&times->bcast_overall) << std::endl;
 
-	return s.str();
+    return s.str();
 }
 
 void file_print(rma_nb_queue_t* queue, const char* path) {
-	std::ofstream file;
-	file.open(path);
-	if (!file.is_open()) {
-		return;
-	}
+    std::ofstream file;
+    file.open(path);
+    if (!file.is_open()) {
+        return;
+    }
 
-	elem_t elem;
-	u_node_info_t next_node_info;
+    elem_t elem;
+    u_node_info_t next_node_info;
 
-	begin_epoch_all(queue->win);
+    begin_epoch_all(queue->win);
 
-	MPI_Get(&next_node_info, sizeof(u_node_info_t), MPI_BYTE, MAIN_RANK,
-			MPI_Aint_add(queue->statedisp_local, offsets.qs_tail), sizeof(u_node_info_t), MPI_BYTE, queue->win);
-	MPI_Win_flush(MAIN_RANK, queue->win);
+    MPI_Get(&next_node_info, sizeof(u_node_info_t), MPI_BYTE, MAIN_RANK,
+            MPI_Aint_add(queue->statedisp_local, offsets.qs_tail), sizeof(u_node_info_t), MPI_BYTE, queue->win);
+    MPI_Win_flush(MAIN_RANK, queue->win);
 
-	if (next_node_info.raw != UNDEFINED_RANK) {
-		if (USE_DEBUG) std::cout << "rank " << myrank << ":\t" << next_node_info.parsed.rank << "\t" << next_node_info.parsed.position << std::endl;
-		do {
-			MPI_Get(&elem, sizeof(elem_t), MPI_BYTE, next_node_info.parsed.rank,
-					MPI_Aint_add(queue->datadisp[next_node_info.parsed.rank], sizeof(elem_t) * next_node_info.parsed.position),
-					sizeof(elem_t), MPI_BYTE, queue->win);
-			MPI_Win_flush(next_node_info.parsed.rank, queue->win);
+    if (next_node_info.raw != UNDEFINED_RANK) {
+        if (USE_DEBUG) std::cout << "rank " << myrank << ":\t" << next_node_info.parsed.rank << "\t" << next_node_info.parsed.position << std::endl;
+        do {
+            MPI_Get(&elem, sizeof(elem_t), MPI_BYTE, next_node_info.parsed.rank,
+                    MPI_Aint_add(queue->datadisp[next_node_info.parsed.rank], sizeof(elem_t) * next_node_info.parsed.position),
+                    sizeof(elem_t), MPI_BYTE, queue->win);
+            MPI_Win_flush(next_node_info.parsed.rank, queue->win);
 
-			file << elem.ts << "\t\t(" << next_node_info.parsed.rank << ", " << next_node_info.parsed.position << ")\t\t" << elem.value << "\t\t(" << elem.next_node_info.parsed.rank << ", " << elem.next_node_info.parsed.position << ")\n";
-			next_node_info = elem.next_node_info;
-		} while (next_node_info.raw != UNDEFINED_NODE_INFO);
-	}
+            file << elem.ts << "\t\t(" << next_node_info.parsed.rank << ", " << next_node_info.parsed.position << ")\t\t" << elem.value << "\t\t(" << elem.next_node_info.parsed.rank << ", " << elem.next_node_info.parsed.position << ")\n";
+            next_node_info = elem.next_node_info;
+        } while (next_node_info.raw != UNDEFINED_NODE_INFO);
+    }
 
-	end_epoch_all(queue->win);
+    end_epoch_all(queue->win);
 
-	file.close();
+    file.close();
 }
 
 void submit_hostname(MPI_Comm comm) {
-	const int host_name_size = 20;
-	char host_name[host_name_size];
-	int comm_size;
+    const int host_name_size = 20;
+    char host_name[host_name_size];
+    int comm_size;
 
-	MPI_Comm_size(comm, &comm_size);
-	gethostname(host_name, host_name_size);
-	for(int i = 0; i < comm_size; ++i) {
-		if(i == myrank) {
-			l_str << "running on host " << host_name << std::endl;
-			log_(l_str, LOG_PRINT_CONSOLE | LOG_PRINT_FILE);
-		}
-		MPI_Barrier(comm);
-	}
+    MPI_Comm_size(comm, &comm_size);
+    gethostname(host_name, host_name_size);
+    for(int i = 0; i < comm_size; ++i) {
+        if(i == myrank) {
+            l_str << "running on host " << host_name << std::endl;
+            log_(l_str, LOG_PRINT_CONSOLE | LOG_PRINT_FILE);
+        }
+        MPI_Barrier(comm);
+    }
 }
 double calc_throughput(int num_of_ops_per_node, int n_proc, double time_taken) {
-	return ((double)(num_of_ops_per_node * n_proc)) / time_taken;
+    return ((double)(num_of_ops_per_node * n_proc)) / time_taken;
 }
 void calc_and_print_total_mpi_calls(rma_nb_queue_t* queue, mpi_call_counter_t* counter) {
-	if(USE_MPI_CALLS_COUNTING == 0) return;
-	
-	l_str << "made " << print(counter);
-	log_(l_str);
-	if (myrank == MAIN_RANK) {
-		mpi_call_counter_t current;
-		mpi_call_counter_t total;
-		mpi_call_counter_init(&current, queue->n_proc);
-		mpi_call_counter_init(&total, queue->n_proc);
-		
-		for (int i = 0; i < queue->n_proc; ++i) {
-			if (i == myrank) continue;
-			MPI_Recv(current.to, queue->n_proc, MPI_INT, i, 
-						MPI_ANY_TAG, queue->comm, MPI_STATUS_IGNORE);
-			sum(&total, &current);
-		}
-		sum(&total, counter);
+    if(USE_MPI_CALLS_COUNTING == 0) return;
 
-		l_str << "total " << print(&total);
-		log_(l_str, LOG_PRINT_CONSOLE | LOG_PRINT_FILE);
-		// mpi_call_counter_free(&total);
-	} else {
-		MPI_Send(counter->to, queue->n_proc, MPI_INT, MAIN_RANK, 0, queue->comm);
-	}
+    l_str << "made " << print(counter);
+    log_(l_str);
+    if (myrank == MAIN_RANK) {
+        mpi_call_counter_t current;
+        mpi_call_counter_t total;
+        mpi_call_counter_init(&current, queue->n_proc);
+        mpi_call_counter_init(&total, queue->n_proc);
+
+        for (int i = 0; i < queue->n_proc; ++i) {
+            if (i == myrank) continue;
+            MPI_Recv(current.to, queue->n_proc, MPI_INT, i,
+                     MPI_ANY_TAG, queue->comm, MPI_STATUS_IGNORE);
+            sum(&total, &current);
+        }
+        sum(&total, counter);
+
+        l_str << "total " << print(&total);
+        log_(l_str, LOG_PRINT_CONSOLE | LOG_PRINT_FILE);
+        // mpi_call_counter_free(&total);
+    } else {
+        MPI_Send(counter->to, queue->n_proc, MPI_INT, MAIN_RANK, 0, queue->comm);
+    }
 }
 void calc_and_print_timings(rma_nb_queue_t* queue, timings_t* times) {
-	if(USE_TIMINGS == 0) return;
-	
-	l_str << print(times);
-	log_(l_str);
-	if (myrank == MAIN_RANK) {
-		timings_t current;
-		timings_t total;
-		
-		for (int i = 0; i < queue->n_proc; ++i) {
-			if (i == myrank) continue;
-			MPI_Recv(&current, sizeof(timings_t), MPI_BYTE, i, 
-					 MPI_ANY_TAG, queue->comm, MPI_STATUS_IGNORE);
-			sum(&total, &current);
-		}
-		sum(&total, times);
+    if(USE_TIMINGS == 0) return;
 
-		l_str << "total " << print(&total);
-		log_(l_str, LOG_PRINT_CONSOLE | LOG_PRINT_FILE);
-		// mpi_call_counter_free(&total);
-	} else {
-		MPI_Send(times, sizeof(timings_t), MPI_BYTE, MAIN_RANK, 0, queue->comm);
-	}
+    l_str << print(times);
+    log_(l_str);
+    if (myrank == MAIN_RANK) {
+        timings_t current;
+        timings_t total;
+
+        for (int i = 0; i < queue->n_proc; ++i) {
+            if (i == myrank) continue;
+            MPI_Recv(&current, sizeof(timings_t), MPI_BYTE, i,
+                     MPI_ANY_TAG, queue->comm, MPI_STATUS_IGNORE);
+            sum(&total, &current);
+        }
+        sum(&total, times);
+
+        l_str << "total " << print(&total);
+        log_(l_str, LOG_PRINT_CONSOLE | LOG_PRINT_FILE);
+        // mpi_call_counter_free(&total);
+    } else {
+        MPI_Send(times, sizeof(timings_t), MPI_BYTE, MAIN_RANK, 0, queue->comm);
+    }
 }
 bool check_results(rma_nb_queue_t* queue, test_result result) {
-	bool success;
-	if(myrank == MAIN_RANK) {
-		int actual_size;
-		int expected_size;
-		test_result current;
-		test_result total = result;
+    bool success;
+    if(myrank == MAIN_RANK) {
+        int actual_size;
+        int expected_size;
+        test_result current;
+        test_result total = result;
 
-		for(int target = 1; target < queue->n_proc; ++target) {
-			MPI_Recv(&current, sizeof(test_result), MPI_BYTE,
-					 target, MPI_ANY_TAG, queue->comm, MPI_STATUS_IGNORE);
-			total.added += current.added;
-			total.deleted += current.deleted;
-		}
+        for(int target = 1; target < queue->n_proc; ++target) {
+            MPI_Recv(&current, sizeof(test_result), MPI_BYTE,
+                     target, MPI_ANY_TAG, queue->comm, MPI_STATUS_IGNORE);
+            total.added += current.added;
+            total.deleted += current.deleted;
+        }
 
-		expected_size = total.added - total.deleted;
-		actual_size = get_actual_size(queue);
-		success = expected_size == actual_size;
-		l_str << "overall added " << total.added << ", deleted " << total.deleted << std::endl
-			<< "\tqueue actual size " << actual_size << ", expected size " << expected_size << std::endl
-			<< "\tTEST " << (success ? "OK" : "FAILED") << std::endl;
-		log_(l_str, LOG_PRINT_CONSOLE | LOG_PRINT_FILE);
-	} else {
-		MPI_Send(&result, sizeof(test_result), MPI_BYTE,
-				 MAIN_RANK, 0, queue->comm);
-	}
-	MPI_Bcast(&success, sizeof(bool), MPI_BYTE, MAIN_RANK, queue->comm);
-	return success;
+        expected_size = total.added - total.deleted;
+        actual_size = get_actual_size(queue);
+        success = expected_size == actual_size;
+        l_str << "overall added " << total.added << ", deleted " << total.deleted << std::endl
+              << "\tqueue actual size " << actual_size << ", expected size " << expected_size << std::endl
+              << "\tTEST " << (success ? "OK" : "FAILED") << std::endl;
+        log_(l_str, LOG_PRINT_CONSOLE | LOG_PRINT_FILE);
+    } else {
+        MPI_Send(&result, sizeof(test_result), MPI_BYTE,
+                 MAIN_RANK, 0, queue->comm);
+    }
+    MPI_Bcast(&success, sizeof(bool), MPI_BYTE, MAIN_RANK, queue->comm);
+    return success;
 }
 void check_using_memory_model(rma_nb_queue_t* queue) {
-	int *memory_model;
-	int flag;
-	MPI_Win_get_attr(queue->win, MPI_WIN_MODEL, &memory_model, &flag);
-	l_str << "using " << (*memory_model == MPI_WIN_UNIFIED ? "UNIFIED" : "SEPARATE") << " memory model (" << *memory_model << ", " << flag << ")" << std::endl;
-	log_(l_str, LOG_PRINT_CONSOLE | LOG_PRINT_FILE);
-}
-void test_wtime_wtick() {
-	double wtime = MPI_Wtime();
-	double wtick = MPI_Wtick();
-	double result1 = wtime * wtick;
-	double result2 = result1 + 0.00000000000000001;
-	double sub = result2 - result1;
-	bool bl = result1 < result2;
-	bool beq = result1 == result2;
-	//bool bas = AreSame(result1, result2);
-	bool bm = result1 > result2;
-	l_str << std::setprecision(200)
-		<< "wtime - " << wtime
-		<< "\n\twtick - " << wtick
-		<< "\n\tresult1 - " << result1
-		<< "\n\tresult2 - " << result2
-		<< "\n\tsub - " << sub
-		<< "\n\tr1 < r2 - " << bl
-		<< "\n\tr1 == r2 - " << beq
-		//<< "\n\tr1 as r2 - " << bas
-		<< "\n\tr1 > r2 - " << bm << std::endl;
-	log_(l_str);
-}
-void test_get_next_node_rand() {
-	srand(time(0));
-	int n_proc = 15;
-	int next_node;
-	rand_provider_t provider;
-	rand_provider_init(&provider, n_proc);
-
-	std::cout << print(&provider);
-	exclude_rank(&provider, n_proc / 2);
-	std::cout << "Excluded node: " << n_proc / 2 << std::endl;
-
-	do {
-		std::cout << print(&provider);
-		next_node = get_next_node_rand(&provider);
-		std::cout << "Next node: " << next_node << std::endl;
-	} while (next_node != UNDEFINED_RANK);
-
-	rand_provider_free(&provider);
-}
-void test_queue_init(int argc, char** argv) {
-	int data_size_per_node = 7;
-
-	rma_nb_queue_t* queue;
-	rma_nb_queue_init(&queue, data_size_per_node, MPI_COMM_WORLD);
-
-	MPI_Barrier(queue->comm);
-	for (int i = 0; i < queue->n_proc; ++i) {
-		if (i == myrank) {
-			log_(print_attributes(queue));
-		}
-		MPI_Barrier(queue->comm);
-	}
-	MPI_Barrier(queue->comm);
-
-	rma_nb_queue_free(queue);
-}
-void test_enq_single_proc(int argc, char** argv) {
-	int op_res;
-	int size_per_node = 50;
-	int num_of_enqs = 10;
-	int max_value = 1000;
-	int value;
-
-	rma_nb_queue_t* queue;
-	rma_nb_queue_init(&queue, size_per_node, MPI_COMM_WORLD);
-
-	log_(print_attributes(queue));
-
-	srand(time(0));
-
-	MPI_Barrier(queue->comm);
-	for (int i = 0; i < num_of_enqs; ++i) {
-		// value = rand() % max_value;
-		value = get_rand(max_value);
-		op_res = enqueue(queue, value);
-		if (op_res == CODE_SUCCESS) {
-			l_str << "added " << value << std::endl;
-		} else {
-			l_str << "failed to add " << value << ", code " << op_res << std::endl;
-		}
-		log_(l_str);
-	}
-	MPI_Barrier(queue->comm);
-
-	log_(print(queue));
-
-	rma_nb_queue_free(queue);
-}
-void test_enq_multiple_proc(int argc, char** argv) {
-	int op_res;
-	int size_per_node = 50;
-	int num_of_enqs = 10;
-	int max_value = 1000;
-	int added = 0;
-	int value;
-
-	rma_nb_queue_t* queue;
-	rma_nb_queue_init(&queue, size_per_node, MPI_COMM_WORLD);
-
-	for (int i = 0; USE_DEBUG && i < queue->n_proc; ++i) {
-		if (i == myrank) log_(print_attributes(queue));
-		MPI_Barrier(queue->comm);
-	}
-
-	MPI_Barrier(queue->comm);
-	for (int i = 0; i < num_of_enqs; ++i) {
-		// value = rand() % max_value;
-		value = get_rand(max_value);
-		op_res = enqueue(queue, value);
-		if (op_res == CODE_SUCCESS) {
-			++added;
-			l_str << "added " << value << std::endl;
-		} else {
-			l_str << "failed to add " << value << ", code " << op_res << std::endl;
-		}
-		log_(l_str);
-	}
-	MPI_Barrier(queue->comm);
-
-	if(myrank == MAIN_RANK) log_(print(queue));
-
-	MPI_Barrier(queue->comm);
-	l_str << "added " << added << " elements\n";
-	log_(l_str);
-
-	MPI_Barrier(queue->comm);
-	for (int i = 0; USE_DEBUG && i < queue->n_proc; ++i) {
-		if (i == myrank) log_(print_attributes(queue));
-		MPI_Barrier(queue->comm);
-	}
-
-	rma_nb_queue_free(queue);
-}
-void test_deq_single_proc(int argc, char** argv) {
-	int op_res;
-	int size_per_node = 50;
-	int num_of_enqs = 10;
-	int num_of_deqs = 10;
-	int max_value = 1000;
-	int value;
-
-	rma_nb_queue_t* queue;
-	rma_nb_queue_init(&queue, size_per_node, MPI_COMM_WORLD);
-
-	log_(print_attributes(queue));
-
-	MPI_Barrier(queue->comm);
-	for (int i = 0; i < num_of_enqs; ++i) {
-		// value = rand() % max_value;
-		value = get_rand(max_value);
-		op_res = enqueue(queue, value);
-		if (op_res == CODE_SUCCESS) {
-			l_str << "added " << value << std::endl;
-		} else {
-			l_str << "failed to add " << value << ", code " << op_res << std::endl;
-		}
-		log_(l_str);
-	}
-	MPI_Barrier(queue->comm);
-
-	log_(print(queue));
-	log_(print_attributes(queue));
-
-	MPI_Barrier(queue->comm);
-	for (int i = 0; i < num_of_deqs; ++i) {
-		op_res = dequeue(queue, &value);
-		if (op_res == CODE_SUCCESS) {
-			l_str << "deleted " << value << std::endl;
-		} else {
-			l_str << "failed to delete, code " << op_res << std::endl;
-		}
-		log_(l_str);
-	}
-	MPI_Barrier(queue->comm);
-
-	log_(print(queue));
-	log_(print_attributes(queue));
-
-	rma_nb_queue_free(queue);
-}
-void test_deq_multiple_proc(int argc, char** argv) {
-	int op_res;
-	int size_per_node = 9;
-	int num_of_enqs = 10;
-	int num_of_deqs = 10;
-	int max_value = 1000;
-	int added = 0;
-	int deleted = 0;
-	int value;
-
-	rma_nb_queue_t* queue;
-	rma_nb_queue_init(&queue, size_per_node, MPI_COMM_WORLD);
-
-	for (int i = 0; /*USE_DEBUG &&*/ i < queue->n_proc; ++i) {
-		if (i == myrank) log_(print_attributes(queue));
-		MPI_Barrier(queue->comm);
-	}
-
-	MPI_Barrier(queue->comm);
-	for (int i = 0; i < num_of_enqs; ++i) {
-		// value = rand() % max_value;
-		value = get_rand(max_value);
-		op_res = enqueue(queue, value);
-		if (op_res == CODE_SUCCESS) {
-			++added;
-			l_str << "added " << value << std::endl;
-		} else {
-			l_str << "failed to add " << value << ", code " << op_res << std::endl;
-		}
-		log_(l_str);
-	}
-	MPI_Barrier(queue->comm);
-
-	if(myrank == MAIN_RANK) log_(print(queue));
-
-	MPI_Barrier(queue->comm);
-	l_str << "added " << added << " elements\n";
-	log_(l_str, LOG_PRINT_CONSOLE | LOG_PRINT_FILE);
-
-	MPI_Barrier(queue->comm);
-	for (int i = 0; /*USE_DEBUG &&*/ i < queue->n_proc; ++i) {
-		if (i == myrank) log_(print_attributes(queue));
-		MPI_Barrier(queue->comm);
-	}
-
-	MPI_Barrier(queue->comm);
-	for (int i = 0; i < num_of_deqs; ++i) {
-		op_res = dequeue(queue, &value);
-		if (op_res == CODE_SUCCESS) {
-			++deleted;
-			l_str << "deleted " << value << std::endl;
-		} else {
-			l_str << "failed to delete, code " << op_res << std::endl;
-		}
-		log_(l_str);
-	}
-	MPI_Barrier(queue->comm);
-
-	if (myrank == MAIN_RANK) log_(print(queue));
-
-	MPI_Barrier(queue->comm);
-	l_str << "deleted " << deleted << " elements\n";
-	log_(l_str, LOG_PRINT_CONSOLE | LOG_PRINT_FILE);
-
-	MPI_Barrier(queue->comm);
-	for (int i = 0; /*USE_DEBUG &&*/ i < queue->n_proc; ++i) {
-		if (i == myrank) log_(print_attributes(queue));
-		MPI_Barrier(queue->comm);
-	}
-
-	rma_nb_queue_free(queue);
-}
-bool test_enq_deq_multiple_proc(int size_per_node, int num_of_ops_per_node, MPI_Comm comm, double* result_thrpt) {
-	log_("STARTING TEST_ENQ_DEQ_M_PROC\n");
-	l_str << "size_per_node: " << size_per_node
-			<< "\n\tnum_of_ops_per_node: " << num_of_ops_per_node << std::endl;
-	log_(l_str);
-
-	val_t value;
-	long long start, end;
-	double result_time;
-	long long start_own, end_own;
-	double result_time_own;
-
-	test_result result;
-	result.added = 0;
-	result.deleted = 0;
-
-	rma_nb_queue_t* queue;
-	rma_nb_queue_init(&queue, size_per_node, comm);
-
-	l_str << "n_proc: " << queue->n_proc
-			<< "\n\tts_offset: " << queue->ts_offset << std::endl;
-	log_(l_str);
-
-	if(myrank == MAIN_RANK) {
-		check_using_memory_model(queue);
-		l_str << "number of procs " << queue->n_proc << std::endl;
-		log_(l_str, LOG_PRINT_CONSOLE);
-	}
-
-	MPI_Barrier(queue->comm);
-	for (int i = 0; i < num_of_ops_per_node/2; ++i) {
-		if (enqueue(queue, get_rand(10000)) == CODE_SUCCESS) ++result.added;
-		
-		if(USE_DEBUG) {
-			l_str << "added " << result.added << std::endl;
-			log_(l_str);
-			// g_pause();
-		}
-	}
-	if(USE_DEBUG) {
-		l_str << "added " << result.added << std::endl;
-		log_(l_str, LOG_PRINT_CONSOLE | LOG_PRINT_FILE);
-	}
-	MPI_Barrier(queue->comm);
-
-	if (myrank == MAIN_RANK) {
-		// log_(print(queue));
-		start = clock();
-	}
-
-	MPI_Barrier(queue->comm);
-	start_own = clock();
-	for (int i = 0; i < num_of_ops_per_node; ++i) {
-		if (get_rand(2)) {
-			if (enqueue(queue, get_rand(10000)) == CODE_SUCCESS) ++result.added;
-		} else {
-			if (dequeue(queue, &value) == CODE_SUCCESS) ++result.deleted;
-		}
-
-		if(USE_DEBUG) {
-			l_str << "added " << result.added << "\tdeleted " << result.deleted << std::endl;
-			log_(l_str);
-		}
-	}
-	end_own = clock();
-	if (USE_DEBUG) log_("finished adding/deleting\n", LOG_PRINT_CONSOLE | LOG_PRINT_FILE);
-	MPI_Barrier(queue->comm);
-
-	if (myrank == MAIN_RANK) {
-		end = clock();
-		result_time = ((double)(end - start)) / CLOCKS_PER_SEC;
-		// log_(print(queue));
-	}
-
-	result_time_own = ((double)(end_own - start_own)) / CLOCKS_PER_SEC;
-
-	for(int i = 0; i < queue->n_proc; ++i) {
-		if (i == myrank) {
-			l_str << "total added\t" << result.added << ",\tdeleted\t" << result.deleted << std::endl;
-			log_(l_str, LOG_PRINT_CONSOLE | LOG_PRINT_FILE);
-		}
-		MPI_Barrier(queue->comm);
-	}
-
-	bool test_result = check_results(queue, result);
-
-	if (myrank == MAIN_RANK) {
-		*result_thrpt = calc_throughput(num_of_ops_per_node, queue->n_proc, result_time);
-		l_str << "time taken: " << result_time << " s\tthroughput: " << *result_thrpt << " ops/s" << std::endl;
-		log_(l_str, LOG_PRINT_CONSOLE | LOG_PRINT_FILE);
-	}
-
-	// l_str << print_attributes(queue) << std::endl;
-	l_str << "OWN time taken: " << result_time_own << " s\tthroughput: " << calc_throughput(num_of_ops_per_node, queue->n_proc, result_time_own) << " ops/s" << std::endl;
-	log_(l_str);
-
-	calc_and_print_total_mpi_calls(queue, &mpi_call_counter);
-	calc_and_print_timings(queue, &timings);
-
-	rma_nb_queue_free(queue);
-	log_("EXITING TEST_ENQ_DEQ_M_PROC\n");
-	return test_result;
-}
-void test_complex(int size_per_node, int num_of_ops_per_node) {
-	log_("STARTING TEST_COMPEX\n");
-	
-	MPI_Comm temp_comm;
-	int world_rank;
-	int world_size;
-	int color;
-
-	MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
-	MPI_Comm_size(MPI_COMM_WORLD, &world_size);
-
-	for(int i = 0; i < world_size; ++i) {
-		color = 1;
-		if (i >= world_rank) color = 0;
-
-		MPI_Comm_split(MPI_COMM_WORLD, color, world_rank, &temp_comm);
-		if (i >= world_rank) test_enq_deq_multiple_proc(size_per_node, num_of_ops_per_node, temp_comm, 0);
-		MPI_Comm_free(&temp_comm);
-
-		if(world_rank == MAIN_RANK) std::cout << "--------------------------------------------------" << std::endl;
-		log_("--------------------------------------------------\n");
-		MPI_Barrier(MPI_COMM_WORLD);
-	}
-	myrank = world_rank;
-
-	log_("EXITING TEST_COMPLEX\n");
-}
-void tests(int argc, char** argv) {
-	int size_per_node = 15000;
-	int num_of_ops_per_node = 10000;
-	int n_proc;
-	int test_calls = 0;
-
-	MPI_Init(&argc, &argv);
-	MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
-	MPI_Comm_size(MPI_COMM_WORLD, &n_proc);
-
-	// srand(time(0) * myrank);
-	log_init(myrank);
-	// mpi_call_counter_init(&mpi_call_counter, n_proc);
-
-	submit_hostname(MPI_COMM_WORLD);
-
-	// if(myrank == MAIN_RANK) {
-	// 	test_get_next_node_rand();
-	// }
-	// test_queue_init(argc, argv);
-	// test_enq_single_proc(argc, argv);
-	// test_enq_multiple_proc(argc, argv);
-	// test_deq_single_proc(argc, argv);
-	// test_deq_multiple_proc(argc, argv);
-	// test_wtime_wtick();
-	// test_enq_deq_multiple_proc(size_per_node, num_of_ops_per_node, MPI_COMM_WORLD);
-
-	// double thrpt_sum = 0;
-	// double tests_num = 10;
-	// for (size_t i = 0; i < tests_num; ++i) {
-		double thrpt = 0;
-		test_enq_deq_multiple_proc(size_per_node, num_of_ops_per_node, MPI_COMM_WORLD, &thrpt);
-	// 	thrpt_sum += thrpt;
-	// }
-	// if (myrank == MAIN_RANK) {
-	// 	l_str << "Throughput avg: " << thrpt_sum/tests_num << " ops/s" << std::endl;
-	// 	log_(l_str, LOG_PRINT_CONSOLE);
-	// }
-
-	// while(test_enq_deq_multiple_proc(size_per_node, num_of_ops_per_node, MPI_COMM_WORLD)){
-	// 	++test_calls;
-	// }
-	// if (myrank == MAIN_RANK) {
-	// 	l_str << "test calls: " << test_calls << std::endl;
-	// 	log_(l_str);
-	// }
-
-	// test_complex(size_per_node, num_of_ops_per_node);
-
-	// mpi_call_counter_free(&mpi_call_counter);
-	log_close();
-	MPI_Finalize();
-}
-
-int main(int argc, char** argv) {
-	tests(argc, argv);
-	return 0;
+    int *memory_model;
+    int flag;
+    MPI_Win_get_attr(queue->win, MPI_WIN_MODEL, &memory_model, &flag);
+    l_str << "using " << (*memory_model == MPI_WIN_UNIFIED ? "UNIFIED" : "SEPARATE") << " memory model (" << *memory_model << ", " << flag << ")" << std::endl;
+    log_(l_str, LOG_PRINT_CONSOLE | LOG_PRINT_FILE);
 }
