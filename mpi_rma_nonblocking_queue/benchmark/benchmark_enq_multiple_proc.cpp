@@ -1,5 +1,15 @@
-#include "../libs/rma_nb_queue/rma_nb_queue.h"
+#include <sstream>
 
+#include "rma_nb_queue/rma_nb_queue.h"
+extern "C"
+{
+#include "mpi_timing/utils.h"
+}
+
+extern std::ostringstream l_str;
+extern int myrank;
+extern mpi_call_counter_t mpi_call_counter;
+extern timings_t timings;
 
 void benchmark_enq_multiple_proc(int argc, char** argv) {
 	int op_res;

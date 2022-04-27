@@ -1,18 +1,13 @@
-#include <iostream>
-#include <fstream>
 #include <sstream>
-#include <unistd.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <errno.h>
-#include <string.h>
-#include <stddef.h>
-#include <stdbool.h>
-#include <time.h>
-#include <limits>
-#include <iomanip>
 
-#include "../libs/rma_nb_queue/rma_nb_queue.h"
+#include "rma_nb_queue/rma_nb_queue.h"
+extern "C"
+{
+    #include "mpi_timing/utils.h"
+}
+
+extern std::ostringstream l_str;
+extern int myrank;
 
 void benchmark_deq_multiple_proc(int argc, char** argv) {
     int op_res;
@@ -102,7 +97,7 @@ int main(int argc, char** argv) {
 
     submit_hostname(MPI_COMM_WORLD);
 
-    test_deq_multiple_proc(argc, argv);
+    benchmark_deq_multiple_proc(argc, argv);
 
     // mpi_call_counter_free(&mpi_call_counter);
     log_close();

@@ -1,4 +1,15 @@
-#include "../libs/rma_nb_queue/rma_nb_queue.h"
+#include <sstream>
+
+#include "rma_nb_queue/rma_nb_queue.h"
+extern "C"
+{
+#include "mpi_timing/utils.h"
+}
+
+extern std::ostringstream l_str;
+extern int myrank;
+extern mpi_call_counter_t mpi_call_counter;
+extern timings_t timings;
 
 bool benchmark_enq_deq_multiple_proc(int size_per_node, int num_of_ops_per_node, MPI_Comm comm, double* result_thrpt) {
     log_("STARTING TEST_ENQ_DEQ_M_PROC\n");
@@ -122,7 +133,7 @@ int main(int argc, char** argv) {
 
 
     double thrpt = 0;
-    test_enq_deq_multiple_proc(size_per_node, num_of_ops_per_node, MPI_COMM_WORLD, &thrpt);
+    benchmark_enq_deq_multiple_proc(size_per_node, num_of_ops_per_node, MPI_COMM_WORLD, &thrpt);
 
     // mpi_call_counter_free(&mpi_call_counter);
     log_close();

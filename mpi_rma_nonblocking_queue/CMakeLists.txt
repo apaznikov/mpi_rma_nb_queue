@@ -7,3 +7,4 @@ set(MPI_C_COMPILER "mpicc")
 find_package(MPI REQUIRED)
 
 add_subdirectory(libs)
+add_subdirectory(benchmark)

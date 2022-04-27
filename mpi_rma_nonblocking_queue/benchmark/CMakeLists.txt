@@ -51,7 +51,7 @@ target_link_libraries(
 
 add_executable(
         benchmark_enq_multiple_proc
-        benchmark_enq_deq_multiple_proc.cpp
+        benchmark_enq_multiple_proc.cpp
 )
 target_include_directories(
         benchmark_enq_multiple_proc
@@ -96,9 +96,11 @@ target_include_directories(
 target_link_libraries(
         benchmark_deq_multiple_proc
         sub::rma_nb_queue
+        sub::mpi_timing
         ${MPI_CXX_LIBRARIES}
         ${MPI_C_LIBRARIES}
 )
+
 add_executable(
         benchmark_complex
         benchmark_complex.cpp
@@ -106,7 +108,6 @@ add_executable(
 target_include_directories(
         benchmark_complex
         PUBLIC
-        mpi_timing
         ${MPI_INCLUDE_PATH}
 )
 target_link_libraries(

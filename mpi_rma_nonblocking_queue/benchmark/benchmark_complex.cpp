@@ -1,4 +1,17 @@
-#include "../libs/rma_nb_queue/rma_nb_queue.h"
+#include <sstream>
+#include <iostream>
+
+#include "rma_nb_queue/rma_nb_queue.h"
+extern "C"
+{
+    #include "mpi_timing/utils.h"
+}
+
+extern std::ostringstream l_str;
+extern int myrank;
+extern mpi_call_counter_t mpi_call_counter;
+extern timings_t timings;
+
 
 bool benchmark_enq_deq_multiple_proc(int size_per_node, int num_of_ops_per_node, MPI_Comm comm, double* result_thrpt) {
     log_("STARTING TEST_ENQ_DEQ_M_PROC\n");
@@ -120,7 +133,7 @@ void benchmark_complex(int size_per_node, int num_of_ops_per_node) {
         if (i >= world_rank) color = 0;
 
         MPI_Comm_split(MPI_COMM_WORLD, color, world_rank, &temp_comm);
-        if (i >= world_rank) test_enq_deq_multiple_proc(size_per_node, num_of_ops_per_node, temp_comm, 0);
+        if (i >= world_rank) benchmark_enq_deq_multiple_proc(size_per_node, num_of_ops_per_node, temp_comm, 0);
         MPI_Comm_free(&temp_comm);
 
         if(world_rank == MAIN_RANK) std::cout << "--------------------------------------------------" << std::endl;
@@ -148,7 +161,7 @@ int main(int argc, char** argv) {
 
     submit_hostname(MPI_COMM_WORLD);
 
-	 test_complex(size_per_node, num_of_ops_per_node);
+    benchmark_complex(size_per_node, num_of_ops_per_node);
 
     // mpi_call_counter_free(&mpi_call_counter);
     log_close();

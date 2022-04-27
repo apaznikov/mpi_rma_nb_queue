@@ -1,4 +1,8 @@
-#include "../libs/rma_nb_queue/rma_nb_queue.h"
+#include "rma_nb_queue/rma_nb_queue.h"
+
+#include <sstream>
+
+extern int myrank;
 
 void benchmark_queue_init(int argc, char** argv) {
 	int data_size_per_node = 7;
