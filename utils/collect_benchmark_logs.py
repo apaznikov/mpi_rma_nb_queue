@@ -33,7 +33,7 @@ class BenchmarkCollector:
             os.chdir(n_procs_dir)
             return_code = self.__run_mpi_program(n_procs)
             if return_code != 0:
-                print(f'WARNING! mpi program with procs={n_procs} return {return_code}')
+                print(f'WARNING! mpi program with procs={n_procs} returned {return_code}')
             os.chdir('..')
 
     def run(self):
