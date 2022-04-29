@@ -59,6 +59,8 @@ class BenchmarkPlotter:
         ys = self.ys_metrics_dict['throughput']
         plt.plot(self.xs, ys)
         plt.grid()
+        plt.subplots_adjust(left=0.2)
+        plt.xticks(self.xs)
         plt.xlabel("Количество процессов")
         plt.ylabel("Пропускная способность (опер/с)")
         plot_path = os.path.join(self.benchmark_plots_out_dir, 'throughput.png')
@@ -69,6 +71,8 @@ class BenchmarkPlotter:
         ys = self.ys_metrics_dict['enq_overall']
         plt.plot(self.xs, ys)
         plt.grid()
+        plt.subplots_adjust(left=0.2)
+        plt.xticks(self.xs)
         plt.xlabel("Количество процессов")
         plt.ylabel("Время, мс")
         plot_path = os.path.join(self.benchmark_plots_out_dir, 'enq_overall.png')
@@ -79,6 +83,8 @@ class BenchmarkPlotter:
         ys = self.ys_metrics_dict['enq_hopping']
         plt.plot(self.xs, ys)
         plt.grid()
+        plt.subplots_adjust(left=0.2)
+        plt.xticks(self.xs)
         plt.xlabel("Количество процессов")
         plt.ylabel("Время, мс")
         plot_path = os.path.join(self.benchmark_plots_out_dir, 'enq_hopping.png')
@@ -89,6 +95,8 @@ class BenchmarkPlotter:
         ys = self.ys_metrics_dict['deq_overall']
         plt.plot(self.xs, ys)
         plt.grid()
+        plt.subplots_adjust(left=0.2)
+        plt.xticks(self.xs)
         plt.xlabel("Количество процессов")
         plt.ylabel("Время, мс")
         plot_path = os.path.join(self.benchmark_plots_out_dir, 'deq_overall.png')
@@ -99,6 +107,8 @@ class BenchmarkPlotter:
         ys = self.ys_metrics_dict['deq_hopping']
         plt.plot(self.xs, ys)
         plt.grid()
+        plt.subplots_adjust(left=0.2)
+        plt.xticks(self.xs)
         plt.xlabel("Количество процессов")
         plt.ylabel("Время, мс")
         plot_path = os.path.join(self.benchmark_plots_out_dir, 'deq_hopping.png')
@@ -109,6 +119,8 @@ class BenchmarkPlotter:
         ys = self.ys_metrics_dict['bcast_overall']
         plt.plot(self.xs, ys)
         plt.grid()
+        plt.subplots_adjust(left=0.2)
+        plt.xticks(self.xs)
         plt.xlabel("Количество процессов")
         plt.ylabel("Время, мс")
         plot_path = os.path.join(self.benchmark_plots_out_dir, 'bcast_overall.png')
@@ -118,9 +130,11 @@ class BenchmarkPlotter:
     def save_plot_enq_overall_enq_hopping_deq_overall_deq_hopping_bcast_overall(self):
         for metric_name, metric_ys in self.ys_metrics_dict.items():
             if metric_name != 'throughput':
-                plt.plot(self.xs, metric_ys)
+                plt.plot(self.xs, metric_ys, label=metric_name)
                 
         plt.grid()
+        plt.subplots_adjust(left=0.2)
+        plt.xticks(self.xs)
         plt.xlabel("Количество процессов")
         plt.ylabel("Время, мс")
         plot_path = os.path.join(self.benchmark_plots_out_dir, 'enq_overall_enq_hopping_deq_overall_deq_hopping_bcast_overall.png')
