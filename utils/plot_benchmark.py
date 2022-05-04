@@ -45,6 +45,14 @@ class BenchmarkLogsParser:
 
 
 class BenchmarkPlotter:
+    linestyle_tuple = [
+        ('densely dotted', (0, (1, 1))),
+
+        ('dashed', (0, (5, 5))),
+        ('densely dashed', (0, (5, 1))),
+
+        ('dashdotted', (0, (3, 5, 1, 5))),
+        ('densely dashdotted', (0, (3, 1, 1, 1)))]
 
     def __init__(self, max_n_procs: int, ys_metrics_dict: dict, benchmark_plots_out_dir:str):
         self.xs = np.arange(1, max_n_procs + 1, 1)
@@ -128,10 +136,12 @@ class BenchmarkPlotter:
         plt.clf()
 
     def save_plot_enq_overall_enq_hopping_deq_overall_deq_hopping_bcast_overall(self):
+        markers = ["o", "d", "v", "s", "x"]
+        i = 0
         for metric_name, metric_ys in self.ys_metrics_dict.items():
             if metric_name != 'throughput':
-                plt.plot(self.xs, metric_ys, label=metric_name)
-                
+                plt.plot(self.xs, metric_ys, marker=markers[i], linestyle=BenchmarkPlotter.linestyle_tuple[i][1])
+                i += 1
         plt.grid()
         plt.subplots_adjust(left=0.2)
         plt.xticks(self.xs)
