@@ -58,7 +58,7 @@ class BenchmarkPlotter:
         self.xs = np.arange(1, max_n_procs + 1, 1)
         self.ys_metrics_dict = ys_metrics_dict
         self.benchmark_plots_out_dir = benchmark_plots_out_dir
-
+        self.max_n_procs = max_n_procs
         if os.path.isdir(self.benchmark_plots_out_dir):
             shutil.rmtree(self.benchmark_plots_out_dir)
         os.mkdir(self.benchmark_plots_out_dir)
@@ -145,6 +145,7 @@ class BenchmarkPlotter:
         plt.grid()
         plt.subplots_adjust(left=0.2)
         plt.xticks(self.xs)
+        plt.yticks(np.arange(0, max([np.max(metrix_ys) for metric_name, metrix_ys in self.ys_metrics_dict.items() if metric_name != 'throughput']) + 0.01, 0.01))
         plt.xlabel("Количество процессов")
         plt.ylabel("Время, мс")
         plot_path = os.path.join(self.benchmark_plots_out_dir, 'enq_overall_enq_hopping_deq_overall_deq_hopping_bcast_overall.png')
