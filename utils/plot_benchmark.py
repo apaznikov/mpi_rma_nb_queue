@@ -140,7 +140,7 @@ class BenchmarkPlotter:
         i = 0
         for metric_name, metric_ys in self.ys_metrics_dict.items():
             if metric_name != 'throughput':
-                plt.plot(self.xs, metric_ys, marker=markers[i], linestyle=BenchmarkPlotter.linestyle_tuple[i][1])
+                plt.plot(self.xs, metric_ys, label= metric_name, marker=markers[i], linestyle=BenchmarkPlotter.linestyle_tuple[i][1])
                 i += 1
         plt.grid()
         plt.subplots_adjust(left=0.2)
